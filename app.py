@@ -6,7 +6,7 @@ import plotly.express as px
 # CONFIGURAÇÕES DA PÁGINA
 # ---------------------------------------------------------------
 st.set_page_config(
-    page_title="Dashboard de PPM & Defeitos - WEG",
+    page_title="Gestão de Refugos e PPM - WEG",
     layout="wide",
 )
 
@@ -15,106 +15,133 @@ st.set_page_config(
 # ---------------------------------------------------------------
 @st.cache_data
 def carregar_dados():
-    # 1. Carrega o primeiro CSV (Dados agregados de Refugo/Design)
+    # Carregando as duas planilhas enviadas
     df_design = pd.read_csv("EXEMPLO DESIGN DEFEITO - Copia.xlsx - Planilha1.csv")
-    
-    # 2. Carrega o segundo CSV (Dados detalhados com Apontamentos)
     df_detalhado = pd.read_csv("EXEMPLO DESIGN DEFEITO.xlsx - Planilha1.csv")
     
-    # Limpeza dos nomes das colunas (remove espaços extras)
+    # Padronização e limpeza nos nomes das colunas
     df_design.columns = df_design.columns.str.strip()
     df_detalhado.columns = df_detalhado.columns.str.strip()
     
-    # Tratamento de Tipos e Datas
+    # Tratamento de tipos de dados da planilha principal
     df_design['DATA'] = pd.to_datetime(df_design['DATA'], errors='coerce')
     df_design['QTD PÇ'] = pd.to_numeric(df_design['QTD PÇ'], errors='coerce').fillna(0)
     df_design['PESO TOTAL'] = pd.to_numeric(df_design['PESO TOTAL'], errors='coerce').fillna(0)
+    df_design['MÊS'] = df_design['MÊS'].astype(str)
     
     return df_design, df_detalhado
 
 # ---------------------------------------------------------------
-# INTERFACE PRINCIPAL
+# APLICAÇÃO PRINCIPAL
 # ---------------------------------------------------------------
 def main():
-    st.title("📊 Painel de Qualidade & Cálculo de PPM")
-    st.caption("Análise Integrada das Planilhas de Defeitos e Refugos")
+    st.title("📊 Painel de Qualidade - Cálculo de PPM & Análise de Defeitos")
+    st.caption("Região 1 / Linhas de Moldagem - WEG")
 
     try:
         df_design, df_detalhado = carregar_dados()
     except Exception as e:
-        st.error(f"Erro ao carregar os arquivos CSV/Excel: {e}")
-        st.info("Certifique-se de que os arquivos estão na mesma pasta do script app.py")
+        st.error(f"Erro ao carregar os arquivos CSV: {e}")
+        st.info("Garanta que os arquivos CSV das planilhas estejam no mesmo diretório do script.")
         return
 
     # ---------------------------------------------------------------
-    # FILTROS LATERAIS
+    # BARRA LATERAL - FILTROS E PARÂMETROS
     # ---------------------------------------------------------------
-    st.sidebar.header("🔍 Filtros de Análise")
+    st.sidebar.header("🔍 Filtros de Consulta")
     
-    # Filtro de Centro de Trabalho / Moldagem
-    cts_disponiveis = ["Todos"] + list(df_design['CT PROD DESC'].dropna().unique())
-    ct_selecionado = st.sidebar.selectbox("Centro de Trabalho / Molde", cts_disponiveis)
+    # Filtro por Centro de Trabalho (Molde/Posto)
+    cts_disponiveis = ["Todos"] + sorted(list(df_design['CT PROD DESC'].dropna().unique()))
+    ct_selecionado = st.sidebar.selectbox("Centro de Trabalho (CT)", cts_disponiveis)
     
-    # Filtro de Tipo de Defeito
-    defeitos_disponiveis = ["Todos"] + list(df_design['DEFEITO'].dropna().unique())
+    # Filtro por Tipo de Defeito
+    defeitos_disponiveis = ["Todas"] + sorted(list(df_design['DEFEITO'].dropna().unique()))
     defeito_selecionado = st.sidebar.selectbox("Tipo de Defeito", defeitos_disponiveis)
 
-    # Aplicação dos Filtros
+    # Parâmetro de Produção Total para o Cálculo do PPM
+    st.sidebar.divider()
+    st.sidebar.subheader("📐 Parâmetro do PPM")
+    producao_total = st.sidebar.number_input(
+        "Volume Total Produzido (Pçs)", 
+        value=100000, 
+        step=5000,
+        help="Informe o volume total produzido no período para calcular o PPM real."
+    )
+
+    # Aplicação dos filtros na base
     df_filtrado = df_design.copy()
     if ct_selecionado != "Todos":
         df_filtrado = df_filtrado[df_filtrado['CT PROD DESC'] == ct_selecionado]
-    if defeito_selecionado != "Todos":
+    if defeito_selecionado != "Todas":
         df_filtrado = df_filtrado[df_filtrado['DEFEITO'] == defeito_selecionado]
 
     # ---------------------------------------------------------------
-    # MÉTRICAS E CÁLCULO DO PPM
+    # CÁLCULOS DOS KPIS
     # ---------------------------------------------------------------
-    total_pecas_refugadas = df_filtrado['QTD PÇ'].sum()
-    peso_total_refugado = df_filtrado['PESO TOTAL'].sum()
+    total_pecas_refugo = df_filtrado['QTD PÇ'].sum()
+    peso_total_refugo = df_filtrado['PESO TOTAL'].sum()
     
-    # Exemplo: Defina ou receba a produção total para o cálculo exato do PPM
-    # (Por padrão, usa-se um volume base se não houver coluna de 'Produção Total Boa')
-    producao_total_estimada = st.sidebar.number_input(
-        "Produção Total do Período (Pçs)", 
-        value=100000, 
-        step=5000,
-        help="Informe o volume total produzido no período para calcular o PPM exato."
-    )
+    # Cálculo do PPM
+    ppm = (total_pecas_refugo / producao_total) * 1_000_000 if producao_total > 0 else 0
 
-    ppm = (total_pecas_refugadas / producao_total_estimada) * 1_000_000 if producao_total_estimada > 0 else 0
-
-    # Exibição dos KPIs
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("PPM Calculado", f"{ppm:,.2f}")
-    c2.metric("Total Peças Refugadas", f"{int(total_pecas_refugadas)} pçs")
-    c3.metric("Peso Total Percebido", f"{peso_total_refugado:,.1f} kg")
-    c4.metric("Ocorrências Registradas", len(df_filtrado))
+    # Exibição dos Cartões Indicadores (KPIs)
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    kpi1.metric("PPM (Partes Por Milhão)", f"{ppm:,.2f}")
+    kpi2.metric("Total Refugado (Peças)", f"{int(total_pecas_refugo)} pçs")
+    kpi3.metric("Peso Refugado", f"{peso_total_refugo:,.1f} kg")
+    kpi4.metric("Ocorrências Registradas", len(df_filtrado))
 
     st.divider()
 
     # ---------------------------------------------------------------
-    # GRÁFICOS
+    # GRÁFICOS VISUAIS
     # ---------------------------------------------------------------
     col_g1, col_g2 = st.columns(2)
 
     with col_g1:
-        st.subheader("📌 Defeitos por Tipo (Pareto)")
-        df_pareto = df_filtrado.groupby('DEFEITO')['QTD PÇ'].sum().reset_index().sort_values(by='QTD PÇ', ascending=False)
-        fig_pareto = px.bar(df_pareto, x='DEFEITO', y='QTD PÇ', text='QTD PÇ', color='QTD PÇ', color_continuous_scale='Reds')
+        st.subheader("📌 Principais Defeitos (Pareto)")
+        df_pareto = (
+            df_filtrado.groupby('DEFEITO')['QTD PÇ']
+            .sum()
+            .reset_index()
+            .sort_values(by='QTD PÇ', ascending=False)
+        )
+        fig_pareto = px.bar(
+            df_pareto, 
+            x='DEFEITO', 
+            y='QTD PÇ', 
+            text='QTD PÇ', 
+            labels={'DEFEITO': 'Defeito', 'QTD PÇ': 'Qtd. Peças Refugadas'},
+            color='QTD PÇ', 
+            color_continuous_scale='Reds'
+        )
         st.plotly_chart(fig_pareto, use_container_width=True)
 
     with col_g2:
-        st.subheader("📅 Evolução Temporal do Refugo")
-        df_tempo = df_filtrado.groupby('MÊS')['QTD PÇ'].sum().reset_index()
-        fig_tempo = px.line(df_tempo, x='MÊS', y='QTD PÇ', markers=True, title="Peças Refugadas por Mês")
+        st.subheader("📈 Evolução de Refugo por Mês")
+        df_tempo = (
+            df_filtrado.groupby('MÊS')['QTD PÇ']
+            .sum()
+            .reset_index()
+            .sort_values(by='MÊS')
+        )
+        fig_tempo = px.line(
+            df_tempo, 
+            x='MÊS', 
+            y='QTD PÇ', 
+            markers=True, 
+            labels={'MÊS': 'Mês', 'QTD PÇ': 'Qtd. Peças Refugadas'}
+        )
         st.plotly_chart(fig_tempo, use_container_width=True)
 
     # ---------------------------------------------------------------
-    # TABELA COMPLETA DE DADOS
+    # TABELA DE DADOS
     # ---------------------------------------------------------------
-    st.subheader("📋 Detalhamento dos Registros de Refugo")
-    st.dataframe(df_filtrado[['DATA', 'DEFEITO', 'QTD PÇ', 'PESO TOTAL', 'CT PROD DESC', 'MAT BRUT DESC']], use_container_width=True)
-
+    st.subheader("📋 Registros de Defeito Filtrados")
+    st.dataframe(
+        df_filtrado[['DATA', 'DEFEITO', 'QTD PÇ', 'PESO TOTAL', 'CT PROD DESC', 'MAT BRUT DESC']], 
+        use_container_width=True
+    )
 
 if __name__ == "__main__":
     main()
