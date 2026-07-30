@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Sistema de Registro e Consulta de Chamados de TI - Regiao 1 (WEG)
-Predios: 57, 59, 60 e 62
+Predios: 58, 59, 60 e 62
 
 Como rodar:
     1) pip install streamlit
@@ -316,7 +316,7 @@ def exibir_post(row):
 
 def pagina_blog():
     st.title("Base de Chamados - Regiao 1")
-    st.caption("Predios 57, 59, 60 e 62")
+    st.caption("Predios 58, 59, 60 e 62")
 
     col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
     texto = col1.text_input("Buscar por palavra-chave (titulo, sintoma, causa)")
@@ -393,14 +393,14 @@ def main():
         st.session_state["excluindo_id"] = None
 
     st.sidebar.title("Base de Chamados TI")
-    st.sidebar.caption("Regiao 1 - Predios 57, 59, 60, 62")
+    st.sidebar.caption("Regiao 1 - Predios 58, 59, 60, 62")
     pagina = st.sidebar.radio(
         "Navegacao",
         ["Blog de Chamados", "Novo Registro"],
     )
     st.sidebar.divider()
     st.sidebar.markdown("**Predios sob sua responsabilidade:**")
-    st.sidebar.markdown("57, 59, 60, 62")
+    st.sidebar.markdown("58, 59, 60, 62")
 
     if pagina == "Blog de Chamados":
         pagina_blog()
