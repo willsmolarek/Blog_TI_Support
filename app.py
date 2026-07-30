@@ -18,7 +18,7 @@ from datetime import datetime
 # ---------------------------------------------------------------
 # CONFIGURACOES FIXAS DO PROJETO
 # ---------------------------------------------------------------
-PREDIOS_VALIDOS = ["57", "59", "60", "62"]
+PREDIOS_VALIDOS = ["58", "59", "60", "62"]
 CATEGORIAS = ["Rede", "SAP", "Hardware", "Permissoes", "Software", "Impressora", "E-mail/Outlook", "Outro"]
 URGENCIAS = ["Alta", "Media", "Baixa"]
 DB_PATH = "chamados.db"
